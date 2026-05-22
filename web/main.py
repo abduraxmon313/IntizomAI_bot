@@ -23,9 +23,11 @@ from database.db import get_db
 
 app = FastAPI(title="IntizomAI Web API", version="1.0.0")
 
+ALLOWED_ORIGINS = [WEBAPP_URL] if WEBAPP_URL else ["http://localhost", "http://127.0.0.1"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[WEBAPP_URL] if WEBAPP_URL else ["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
