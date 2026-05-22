@@ -7,7 +7,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "")
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or BOT_TOKEN
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")

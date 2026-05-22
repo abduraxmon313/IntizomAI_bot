@@ -175,7 +175,7 @@
       root.innerHTML = state.goals.map(g => `
         <div class="card" style="margin-top:8px">
           <div>${g.title} <span class="muted">(${g.goal_type})</span></div>
-          <div class="progress" style="margin-top:8px"><span style="width:${Math.min(g.progress, 100)}%"></span></div>
+          <div class="progress" style="margin-top:8px"><span style="width:${Math.max(0, Math.min(g.progress, 100))}%"></span></div>
           <div class="muted" style="margin-top:4px">${g.current_value}/${g.target_value} (${g.progress}%)</div>
         </div>
       `).join("");
@@ -235,6 +235,11 @@
       const title = prompt("Maqsad nomi");
       if (!title) return;
       const goal_type = prompt("Turi: yearly/monthly/weekly/daily", "monthly") || "monthly";
+      const allowedGoalTypes = ["yearly", "monthly", "weekly", "daily"];
+      if (!allowedGoalTypes.includes(goal_type)) {
+        showToast("❗ goal_type: yearly/monthly/weekly/daily bo'lishi kerak");
+        return;
+      }
       const target = Number(prompt("Target", "10") || "10");
       const r = await fetch('/api/goals/create', {
         method: 'POST',

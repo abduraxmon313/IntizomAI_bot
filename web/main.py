@@ -135,7 +135,7 @@ async def get_current_user(
     authorization: Optional[str] = Header(default=None),
 ) -> User:
     if not JWT_SECRET_KEY:
-        raise HTTPException(status_code=500, detail="JWT_SECRET_KEY sozlanmagan")
+        raise HTTPException(status_code=500, detail="Server konfiguratsiya xatosi")
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token talab qilinadi")
     token = authorization.split(" ", 1)[1]
@@ -169,17 +169,19 @@ def _serialize_plan(plan: Plan) -> dict:
 
 
 def _serialize_goal(goal: Goal) -> dict:
+    safe_target = max(goal.target_value, 1)
+    safe_current = max(goal.current_value, 0)
     return {
         "id": goal.id,
         "title": goal.title,
         "description": goal.description,
         "goal_type": goal.goal_type.value,
-        "target_value": goal.target_value,
-        "current_value": goal.current_value,
+        "target_value": safe_target,
+        "current_value": safe_current,
         "start_date": str(goal.start_date) if goal.start_date else None,
         "end_date": str(goal.end_date) if goal.end_date else None,
         "is_completed": goal.is_completed,
-        "progress": round((goal.current_value / goal.target_value) * 100, 2) if goal.target_value else 0,
+        "progress": round((safe_current / safe_target) * 100, 2),
     }
 
 
@@ -220,7 +222,7 @@ async def web_ui():
 @app.post("/api/auth/login")
 async def auth_login(payload: LoginRequest, session: AsyncSession = Depends(get_db)):
     if not BOT_TOKEN or not JWT_SECRET_KEY:
-        raise HTTPException(status_code=500, detail="BOT_TOKEN yoki JWT_SECRET_KEY sozlanmagan")
+        raise HTTPException(status_code=500, detail="Server konfiguratsiya xatosi")
     tg_user = _parse_telegram_init_data(payload.init_data)
     user = await _get_or_create_user(session, tg_user)
     token = _token_for_user(user)
