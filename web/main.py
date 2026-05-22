@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 from pydantic import BaseModel, Field
 from sqlalchemy import select, and_
@@ -22,6 +23,13 @@ from bot.models.score_log import ScoreLog
 from database.db import get_db
 
 app = FastAPI(title="IntizomAI Web API", version="1.0.0")
+
+BASE_DIR = os.path.dirname(__file__)
+FRONTEND_DIST_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "dist")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+if os.path.isdir(os.path.join(FRONTEND_DIST_DIR, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST_DIR, "assets")), name="assets")
 
 ALLOWED_ORIGINS = [WEBAPP_URL] if WEBAPP_URL else ["http://localhost", "http://127.0.0.1"]
 
@@ -218,7 +226,14 @@ def _stats_payload(plans: list[Plan]) -> dict:
 
 @app.get("/")
 async def web_ui():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "static", "index.html"))
+    if os.path.isfile(os.path.join(FRONTEND_DIST_DIR, "index.html")):
+        return FileResponse(os.path.join(FRONTEND_DIST_DIR, "index.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "intizomai-web"}
 
 
 @app.post("/api/auth/login")
