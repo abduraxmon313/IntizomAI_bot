@@ -30,5 +30,5 @@ async def get_db() -> AsyncSession:
 
 async def create_tables():
     async with engine.begin() as conn:
-        from bot.models import user, plan, score_log, admin  # noqa
+        from bot.models import user, plan, score_log, admin, goal, statistics  # noqa
         await conn.run_sync(Base.metadata.create_all)

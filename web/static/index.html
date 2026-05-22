@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IntizomAI Dashboard</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; font-family: Inter, system-ui, sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(140deg, #0f172a, #111827, #1f2937);
+      color: #f8fafc;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .card {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px;
+      padding: 16px;
+      backdrop-filter: blur(6px);
+    }
+    .grid { display: grid; gap: 12px; }
+    .grid-4 { grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); }
+    .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 8px; margin: 12px 0; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(255,255,255,.1);
+    }
+    button.active { background: #34d399; color: #062a20; font-weight: 600; }
+    button.primary { background: #34d399; color: #062a20; font-weight: 600; }
+    .plan-item { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); }
+    .muted { color: #cbd5e1; font-size: 13px; }
+    .toast { position: fixed; right: 16px; bottom: 16px; background: #34d399; color: #042016; border-radius: 10px; padding: 10px 14px; display: none; }
+    .progress { height: 9px; background: rgba(255,255,255,.1); border-radius: 999px; overflow: hidden; }
+    .progress > span { display: block; height: 100%; background: #a78bfa; }
+    input {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.25);
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1 style="margin:0">IntizomAI Web Dashboard</h1>
+      <p class="muted" style="margin:6px 0 0">Telegram WebApp uchun modern boshqaruv paneli</p>
+      <div id="token-block" class="muted" style="margin-top:10px">
+        JWT token kiriting (Telegram WebApp login bo'lmasa test uchun):
+        <input id="token-input" placeholder="Bearer token" />
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div id="dashboard" class="tab card">
+      <div class="grid grid-4" id="kpis"></div>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">Bugungi rejalar</h3>
+        <button class="primary" id="add-plan">+ Reja</button>
+      </div>
+      <div id="plans" style="margin-top:8px"></div>
+    </div>
+
+    <div id="statistics" class="tab card" style="display:none">
+      <h3 style="margin:0 0 10px">Statistics</h3>
+      <p class="muted">Kunlik, haftalik, oylik, yillik endpointlar backendda tayyor.</p>
+      <div class="progress"><span id="success-bar" style="width:0%"></span></div>
+      <p class="muted" id="success-text"></p>
+    </div>
+
+    <div id="goals" class="tab card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">Maqsadlar</h3>
+        <button class="primary" id="add-goal">+ Goal</button>
+      </div>
+      <div id="goals-list" style="margin-top:8px"></div>
+    </div>
+
+    <div id="plans-tab" class="tab card" style="display:none"><h3>📋 Plans history</h3><p class="muted">/api/plans/history ishlaydi.</p></div>
+    <div id="reports" class="tab card" style="display:none"><h3>📑 Reports</h3><p class="muted">/api/reports/daily|weekly|monthly|yearly ishlaydi.</p></div>
+    <div id="settings" class="tab card" style="display:none"><h3>⚙️ Settings</h3><p class="muted">Profil va preference sozlamalari uchun joy.</p></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const tabs = [
+      ["dashboard", "📊 Dashboard"],
+      ["statistics", "📈 Statistics"],
+      ["goals", "🎯 Goals"],
+      ["plans-tab", "📋 Plans"],
+      ["reports", "📑 Reports"],
+      ["settings", "⚙️ Settings"],
+    ];
+
+    const state = {
+      token: localStorage.getItem("intizom_token") || "",
+      plans: [],
+      goals: [],
+      stats: { total_plans: 0, completed_plans: 0, success_rate: 0, total_score: 0 },
+    };
+
+    const headers = () => state.token ? { Authorization: `Bearer ${state.token}` } : {};
+
+    function showToast(text) {
+      const t = document.getElementById("toast");
+      t.textContent = text;
+      t.style.display = "block";
+      setTimeout(() => t.style.display = "none", 2200);
+    }
+
+    function renderTabs(active = "dashboard") {
+      const root = document.getElementById("tabs");
+      root.innerHTML = "";
+      tabs.forEach(([id, label]) => {
+        const btn = document.createElement("button");
+        btn.textContent = label;
+        if (id === active) btn.classList.add("active");
+        btn.onclick = () => switchTab(id);
+        root.appendChild(btn);
+      });
+    }
+
+    function switchTab(id) {
+      tabs.forEach(([tabId]) => {
+        document.getElementById(tabId).style.display = tabId === id ? "block" : "none";
+      });
+      renderTabs(id);
+    }
+
+    function renderDashboard() {
+      document.getElementById("kpis").innerHTML = [
+        ["Bugungi rejalar", state.stats.total_plans],
+        ["Bajarilgan", state.stats.completed_plans],
+        ["Success rate", `${state.stats.success_rate}%`],
+        ["Bugungi score", state.stats.total_score],
+      ].map(([k,v]) => `<div class="card"><div class="muted">${k}</div><div style="font-size:26px;font-weight:700;margin-top:4px">${v}</div></div>`).join("");
+
+      const plansRoot = document.getElementById("plans");
+      if (!state.plans.length) {
+        plansRoot.innerHTML = `<p class="muted">Hozircha reja yo'q</p>`;
+      } else {
+        plansRoot.innerHTML = state.plans.map(p => `
+          <div class="plan-item">
+            <div>
+              <div>${p.title}</div>
+              <div class="muted">${p.scheduled_time || "Vaqtsiz"} • ${p.status}</div>
+            </div>
+            ${p.status !== "done" ? `<button onclick="completePlan(${p.id})">Complete</button>` : `<span style="color:#6ee7b7">Done</span>`}
+          </div>
+        `).join("");
+      }
+
+      document.getElementById("success-bar").style.width = `${state.stats.success_rate || 0}%`;
+      document.getElementById("success-text").textContent = `Success: ${state.stats.success_rate || 0}%`;
+    }
+
+    function renderGoals() {
+      const root = document.getElementById("goals-list");
+      if (!state.goals.length) {
+        root.innerHTML = `<p class="muted">Maqsadlar yo'q</p>`;
+        return;
+      }
+      root.innerHTML = state.goals.map(g => `
+        <div class="card" style="margin-top:8px">
+          <div>${g.title} <span class="muted">(${g.goal_type})</span></div>
+          <div class="progress" style="margin-top:8px"><span style="width:${Math.min(g.progress, 100)}%"></span></div>
+          <div class="muted" style="margin-top:4px">${g.current_value}/${g.target_value} (${g.progress}%)</div>
+        </div>
+      `).join("");
+    }
+
+    async function safeGet(path, fallback) {
+      if (!state.token) return fallback;
+      try {
+        const r = await fetch(path, { headers: headers() });
+        if (!r.ok) return fallback;
+        const data = await r.json();
+        localStorage.setItem(`cache_${path}`, JSON.stringify(data));
+        return data;
+      } catch {
+        const c = localStorage.getItem(`cache_${path}`);
+        return c ? JSON.parse(c) : fallback;
+      }
+    }
+
+    async function loadData() {
+      if (!state.token) return;
+      const [plans, goals, stats] = await Promise.all([
+        safeGet('/api/plans/today', { items: [] }),
+        safeGet('/api/goals/list', { items: [] }),
+        safeGet('/api/statistics/daily', state.stats),
+      ]);
+      state.plans = plans.items || [];
+      state.goals = goals.items || [];
+      state.stats = stats || state.stats;
+      renderDashboard();
+      renderGoals();
+    }
+
+    async function completePlan(id) {
+      const r = await fetch(`/api/plans/${id}/complete`, { method: 'PUT', headers: headers() });
+      if (r.ok) {
+        showToast("🎉 Reja bajarildi");
+        loadData();
+      }
+    }
+
+    async function addPlan() {
+      const title = prompt("Reja nomi");
+      if (!title) return;
+      const r = await fetch('/api/plans/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers() },
+        body: JSON.stringify({ title })
+      });
+      if (r.ok) {
+        showToast("✅ Reja qo'shildi");
+        loadData();
+      }
+    }
+
+    async function addGoal() {
+      const title = prompt("Maqsad nomi");
+      if (!title) return;
+      const goal_type = prompt("Turi: yearly/monthly/weekly/daily", "monthly") || "monthly";
+      const target = Number(prompt("Target", "10") || "10");
+      const r = await fetch('/api/goals/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers() },
+        body: JSON.stringify({ title, goal_type, target_value: target })
+      });
+      if (r.ok) {
+        showToast("🎯 Maqsad qo'shildi");
+        loadData();
+      }
+    }
+
+    window.completePlan = completePlan;
+    document.getElementById("add-plan").onclick = addPlan;
+    document.getElementById("add-goal").onclick = addGoal;
+
+    const tokenInput = document.getElementById("token-input");
+    tokenInput.value = state.token;
+    tokenInput.onchange = () => {
+      state.token = tokenInput.value.trim();
+      localStorage.setItem("intizom_token", state.token);
+      loadData();
+    };
+
+    if (state.token) document.getElementById("token-block").style.display = "none";
+
+    renderTabs();
+    switchTab("dashboard");
+    loadData();
+  </script>
+</body>
+</html>
