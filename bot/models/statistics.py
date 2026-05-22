@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Date, DateTime, ForeignKey
-from datetime import datetime
+from datetime import datetime, timezone
 from database.db import Base
 
 
@@ -13,7 +13,7 @@ class DailyStatistics(Base):
     completed_plans = Column(Integer, default=0)
     failed_plans = Column(Integer, default=0)
     total_score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class WeeklyStatistics(Base):
@@ -26,7 +26,7 @@ class WeeklyStatistics(Base):
     completed_plans = Column(Integer, default=0)
     failed_plans = Column(Integer, default=0)
     total_score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class MonthlyStatistics(Base):
@@ -39,4 +39,4 @@ class MonthlyStatistics(Base):
     completed_plans = Column(Integer, default=0)
     failed_plans = Column(Integer, default=0)
     total_score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

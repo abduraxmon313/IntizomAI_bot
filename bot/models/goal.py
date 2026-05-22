@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from database.db import Base
 
@@ -25,6 +25,6 @@ class Goal(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     is_completed = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")

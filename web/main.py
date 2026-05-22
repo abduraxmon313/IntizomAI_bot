@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import Optional
 from urllib.parse import parse_qsl
 
@@ -91,8 +91,8 @@ def _parse_telegram_init_data(init_data: str) -> dict:
 
     auth_date = parsed.get("auth_date")
     if auth_date:
-        auth_time = datetime.fromtimestamp(int(auth_date))
-        if datetime.utcnow() - auth_time > timedelta(hours=24):
+        auth_time = datetime.fromtimestamp(int(auth_date), tz=timezone.utc)
+        if datetime.now(timezone.utc) - auth_time > timedelta(hours=24):
             raise HTTPException(status_code=401, detail="Session eskirgan")
 
     user_json = parsed.get("user")
@@ -125,7 +125,7 @@ def _token_for_user(user: User) -> str:
     payload = {
         "sub": str(user.id),
         "telegram_id": user.telegram_id,
-        "exp": datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS),
+        "exp": datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS),
     }
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
 
