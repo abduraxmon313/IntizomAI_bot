@@ -222,3 +222,63 @@ FAQAT JSON QAYTAR, BOSHQA HECH NARSA YOZMA!"""
     except Exception as e:
         logger.error(f"❌ GPT xatosi: {type(e).__name__}: {str(e)}")
         raise e
+
+
+async def extract_time_only(text: str) -> str | None:
+    """Faqat vaqtni chiqaradi (HH:MM formatda yoki None)"""
+    try:
+        now = datetime.now(TIMEZONE)
+        current_time = now.strftime("%H:%M")
+
+        logger.info(f"⏰ Vaqt chiqarish: '{text}' | Hozir: {current_time}")
+
+        system_prompt = """Sen vaqt tahlilchi.
+
+VAZIFA: Foydalanuvchi berilgan matn yoki gapdan FAQAT VAQTNI chiqar.
+
+JAVOB: HH:MM formatda yoki 'null' (agar vaqt yo'q bo'lsa)"""
+
+        user_prompt = f"""Hozirgi vaqti: {current_time}
+
+Foydalanuvchi: "{text}"
+
+QOIDALAR:
+1. Aniq vaqt: "17:00" → 17:00
+2. "soat 9 da" → 09:00
+3. "10 minutdan keyin" → {(now + timedelta(minutes=10)).strftime('%H:%M')}
+4. "yarim soatdan so'ng" → {(now + timedelta(minutes=30)).strftime('%H:%M')}
+5. "1 soatdan keyin" → {(now + timedelta(hours=1)).strftime('%H:%M')}
+6. "2 soatdan so'ng" → {(now + timedelta(hours=2)).strftime('%H:%M')}
+7. Agar vaqt yo'q bo'lsa → null
+
+FAQAT VAQTNI JAVOB QIL, MASALAN: 17:30 yoki null"""
+
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.05,
+        )
+
+        result = response.choices[0].message.content.strip()
+        logger.info(f"✅ Extracted time: '{result}'")
+
+        # Vaqt formatini tekshirish (HH:MM)
+        if result and result != "null" and ":" in result:
+            parts = result.split(":")
+            if len(parts) == 2:
+                try:
+                    hour = int(parts[0])
+                    minute = int(parts[1])
+                    if 0 <= hour <= 23 and 0 <= minute <= 59:
+                        return f"{hour:02d}:{minute:02d}"
+                except ValueError:
+                    pass
+
+        return None
+
+    except Exception as e:
+        logger.error(f"❌ Vaqt chiqarish xatosi: {type(e).__name__}: {str(e)}")
+        return None
