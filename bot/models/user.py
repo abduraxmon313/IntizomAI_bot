@@ -19,3 +19,4 @@ class User(Base):
 
     plans = relationship("Plan", back_populates="user", cascade="all, delete")
     score_logs = relationship("ScoreLog", back_populates="user", cascade="all, delete")
+    goals = relationship("Goal", cascade="all, delete")

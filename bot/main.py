@@ -3,9 +3,9 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 
-from bot.config import BOT_TOKEN
+from bot.config import BOT_TOKEN, WEBAPP_URL
 from bot.handlers import start, plan, callback, report, admin, status
 from bot.services.scheduler import start_scheduler
 from database.db import create_tables
@@ -23,6 +23,17 @@ async def set_commands(bot: Bot):
         BotCommand(command="admin", description="Admin panel"),
     ]
     await bot.set_my_commands(commands)
+
+
+async def set_webapp_button(bot: Bot):
+    if not WEBAPP_URL:
+        return
+    await bot.set_chat_menu_button(
+        menu_button=MenuButtonWebApp(
+            text="📊 Dashboard",
+            web_app=WebAppInfo(url=WEBAPP_URL),
+        )
+    )
 
 
 async def main():
@@ -62,6 +73,7 @@ async def main():
 
     # Buyruqlarni sozlash
     await set_commands(bot)
+    await set_webapp_button(bot)
 
     # Schedulerni ishga tushirish
     start_scheduler(bot)
